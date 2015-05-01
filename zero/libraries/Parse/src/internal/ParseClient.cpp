@@ -65,6 +65,10 @@ static void sendAndEchoToSerial(WiFiClient& client, const char *line) {
 
 
 ParseClient::ParseClient() {
+  memset(applicationId, 0, sizeof(applicationId));
+  memset(clientKey, 0, sizeof(clientKey));
+  memset(installationId, 0, sizeof(installationId));
+  memset(sessionToken, 0, sizeof(sessionToken));
 }
 
 void ParseClient::begin(const char *applicationId, const char *clientKey) {
@@ -77,10 +81,10 @@ void ParseClient::begin(const char *applicationId, const char *clientKey) {
   }
 
   if(applicationId) {
-    this->applicationId = String(applicationId);
+    strncpy(this->applicationId, applicationId, sizeof(this->applicationId));
   }
   if (clientKey) {
-    this->clientKey = String(clientKey);
+    strncpy(this->clientKey, clientKey, sizeof(this->clientKey));
   }
 }
 
@@ -88,26 +92,26 @@ void ParseClient::setInstallationId(const char *installationId) {
   if (installationId) {
       Serial.println(clientKey);
       Serial.println(this->installationId);
-      this->installationId = String(installationId);
+      strncpy(this->installationId, installationId, sizeof(this->installationId));
       Serial.println(clientKey);
       Serial.println(this->installationId);
   } else {
-    this->installationId = "";
+    strncpy(this->installationId, "", sizeof(this->installationId));
   }
 }
 
 const char* ParseClient::getInstallationId() {
-  if (!installationId.length()) {
-    installationId = createNewInstallationId();
+  if (!strlen(installationId)) {
+    setInstallationId(createNewInstallationId().c_str());
     char buff[40];
 
     if (Serial && DEBUG) {
       Serial.print("creating new installationId:");
-      Serial.println(installationId.c_str());
+      Serial.println(installationId);
     }
 
     char content[120];
-    snprintf(content, sizeof(content), "{\"installationId\": \"%s\", \"deviceType\": \"embedded\", \"parseVersion\": \"1.0.0\"}", installationId.c_str());
+    snprintf(content, sizeof(content), "{\"installationId\": \"%s\", \"deviceType\": \"embedded\", \"parseVersion\": \"1.0.0\"}", installationId);
 
     ParseResponse response = sendRequest("POST", "/1/installations", content, "");
     if (Serial && DEBUG) {
@@ -115,24 +119,24 @@ const char* ParseClient::getInstallationId() {
       Serial.println(response.getJSONBody());
     }
   }
-  return installationId.c_str();
+  return installationId;
 }
 
 void ParseClient::setSessionToken(const char *sessionToken) {
   if ((sessionToken != NULL) && (strlen(sessionToken) > 0 )) {
-    this->sessionToken = sessionToken;
+    strncpy(this->sessionToken, sessionToken, sizeof(this->sessionToken));
     if (Serial && DEBUG) {
       Serial.print("setting the session for installation:");
-      Serial.println(installationId.c_str());
+      Serial.println(installationId);
     }
     getInstallationId();
     ParseResponse response = sendRequest("GET", "/1/sessions/me", "", "");
     String installation = response.getString("installationId");
-    if (!installation.length() && installationId.length()) {
+    if (!installation.length() && strlen(installationId)) {
       sendRequest("PUT", "/1/sessions/me", "{}\r\n", "");
     }
   } else {
-   this->sessionToken = "";
+   this->sessionToken[0] = 0;
   }
 }
 
@@ -141,9 +145,9 @@ void ParseClient::clearSessionToken() {
 }
 
 const char* ParseClient::getSessionToken() {
-  if (!sessionToken.length())
+  if (!strlen(sessionToken))
     return NULL;
-  return sessionToken.c_str();
+  return sessionToken;
 }
 
 ParseResponse ParseClient::sendRequest(const char* httpVerb, const char* httpPath, const char* requestBody, const char* urlParams) {
@@ -181,18 +185,18 @@ ParseResponse ParseClient::sendRequest(const String& httpVerb, const String& htt
     sendAndEchoToSerial(client, buff);
     snprintf(buff, sizeof(buff) - 1, "X-Parse-Client-Version: %s", CLIENT_VERSION);
     sendAndEchoToSerial(client, buff);
-    snprintf(buff, sizeof(buff) - 1, "X-Parse-Application-Id: %s", applicationId.c_str());
+    snprintf(buff, sizeof(buff) - 1, "X-Parse-Application-Id: %s", applicationId);
     sendAndEchoToSerial(client, buff);
-    snprintf(buff, sizeof(buff) - 1, "X-Parse-Client-Key: %s", clientKey.c_str());
+    snprintf(buff, sizeof(buff) - 1, "X-Parse-Client-Key: %s", clientKey);
     sendAndEchoToSerial(client, buff);
     if (Serial && DEBUG)
       Serial.println("buff");
-    if (installationId.length() > 0) {
-      snprintf(buff, sizeof(buff) - 1, "X-Parse-Installation-Id: %s", installationId.c_str());
+    if (strlen(installationId) > 0) {
+      snprintf(buff, sizeof(buff) - 1, "X-Parse-Installation-Id: %s", installationId);
       sendAndEchoToSerial(client, buff);
     }
-    if (sessionToken.length() > 0) {
-      snprintf(buff, sizeof(buff) - 1, "X-Parse-Session-Token: %s", sessionToken.c_str());
+    if (strlen(sessionToken) > 0) {
+      snprintf(buff, sizeof(buff) - 1, "X-Parse-Session-Token: %s", sessionToken);
       sendAndEchoToSerial(client, buff);
     }
     String payload;
@@ -230,8 +234,8 @@ bool ParseClient::startPushService() {
     char buff[80] = {0};
     snprintf(buff, sizeof(buff),
        "{\"installation_id\":\"%s\", \"oauth_key\":\"%s\", \"v\": \"e1.0.0\", \"last\": null}",
-       installationId.c_str(),
-       applicationId.c_str());
+       installationId,
+       applicationId);
     sendAndEchoToSerial(pushClient, buff);
   } else {
     if (Serial && DEBUG)

@@ -38,10 +38,10 @@
  */
 class ParseClient {
 private:
-  String applicationId;
-  String clientKey;
-  String installationId;
-  String sessionToken;
+  char applicationId[40]; // APPLICATION_ID_MAX_LEN
+  char clientKey[40]; // CLIENT_KEY_MAX_LEN
+  char installationId[36]; // INSTALLATION_ID_MAX_LEN
+  char sessionToken[40]; // SESSION_TOKEN_MAX_LEN
 
   WiFiClient client;
   WiFiClient pushClient;
